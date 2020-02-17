@@ -42,7 +42,7 @@ class DQN(object):
             frame = frame[::2, ::2]
             state[:, :, i] = frame
         state = state.transpose(2, 0, 1)
-        state = torch.from_numpy(state).float().unsqueeze(0).to(self.device)
+        state = torch.from_numpy(state).float().unsqueeze(0)
         return state
             
     def epsilon_greedy_action(self, state):
@@ -63,10 +63,10 @@ class DQN(object):
         if len(self.replay_buffer) > self.params["batch_size"]:
             self.optimizer.zero_grad()
             replays = self.replay_buffer.sample(self.params["batch_size"])
-            state_batch = torch.cat([rep[0] for rep in replays])
-            action_batch = torch.cat([rep[1] for rep in replays])
-            next_state_batch = torch.cat([rep[2] for rep in replays])
-            reward_batch = torch.cat([rep[3] for rep in replays])
+            state_batch = torch.cat([rep[0] for rep in replays]).to(self.device)
+            action_batch = torch.cat([rep[1] for rep in replays]).to(self.device)
+            next_state_batch = torch.cat([rep[2] for rep in replays]).to(self.device)
+            reward_batch = torch.cat([rep[3] for rep in replays]).to(self.device)
             done_batch = [rep[4] for rep in replays]
             
             non_final_mask = torch.tensor(tuple(map(lambda d: not d, done_batch)), device=self.device, dtype=torch.bool)
@@ -83,27 +83,28 @@ class DQN(object):
      
     def evaluate_policy(self):
         rewards = []
+        print("EPISLON: ", self.epsilon)
         for e in range(self.params["eval_episodes"]):
             prev_frames = deque(maxlen=4)
             for _ in range(3):
                 prev_frames.append(np.zeros((210, 160, 3)))
             #Reset environment and get initial state
             frame = self.env.reset()
-            self.env.render()
-            time.sleep(0.1)
+            #self.env.render()
+            #time.sleep(0.1)
             prev_frames.append(frame)
             state = self.extract_state(prev_frames)
             done = False
             total_reward = 0.0
             for t in range(self.params["max_eval_steps"]):
-                action = self.greedy_action(state)
+                action = self.greedy_action(state.to(self.device))
                 next_frame, reward, done, _ = self.env.step(action.item())
                 total_reward += reward
                 prev_frames.append(next_frame)
                 next_state = self.extract_state(prev_frames)
                 state = next_state
-                self.env.render()
-                time.sleep(0.1)
+                #self.env.render()
+                #time.sleep(0.1)
                 if done:
                     break
             rewards.append(total_reward)
@@ -120,9 +121,9 @@ class DQN(object):
             prev_frames.append(frame)
             state = self.extract_state(prev_frames)
             for t in range(self.params["max_train_steps"]):
-                action = self.epsilon_greedy_action(state)
+                action = self.epsilon_greedy_action(state.to(self.device))
                 next_frame, reward, done, _ = self.env.step(action.item())
-                reward = torch.tensor([[np.sign(reward)]], device=self.device)
+                reward = torch.tensor([[np.sign(reward)]])
                 prev_frames.append(next_frame)
                 next_state = self.extract_state(prev_frames)
                 self.replay_buffer.push(state, action, next_state, reward, done)
