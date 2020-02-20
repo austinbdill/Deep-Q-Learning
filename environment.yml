@@ -1,9 +1,0 @@
-name: RL
-channels:
-  - defaults
-dependencies:
-  - python=3
-  - pytorch
-  - jupyter
-prefix: /Users/abdill/anaconda3/envs/RL
-

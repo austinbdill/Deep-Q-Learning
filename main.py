@@ -3,7 +3,7 @@ import os
 import sys
 import yaml
 import gym
-from agents.dqn import DQN
+from agents.dqn_agent import DQN
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--config", type=str, help='path to config file')
