@@ -25,6 +25,7 @@ class CNN(nn.Module):
         self.main = nn.Sequential(*layers)
 
     def forward(self, state):
+        state = state.float() / 255.0
         return self.main(state)
     
     def conv2d_output_size(self, input_size, kernel_sizes, strides):

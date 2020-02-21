@@ -13,7 +13,7 @@ class DQN(Agent):
         super().__init__(env, params)
     
     def optimize_model(self):
-        if len(self.replay_buffer) > self.params["burn_in"]:
+        if self.frames_seen > self.params["burn_in"]:
             self.optimizer.zero_grad()
             replays = self.replay_buffer.sample(self.params["batch_size"])
             state_batch = torch.cat([rep[0] for rep in replays]).to(self.device)
@@ -33,8 +33,10 @@ class DQN(Agent):
             loss = F.mse_loss(state_action_values, y)
             loss.backward()
             self.optimizer.step()
+            self.update_epsilon()
             
     def train(self):
+        self.frames_seen = 0
         for e in range(self.params["train_episodes"]):
             prev_frames = deque(maxlen=4)
             for _ in range(3):
@@ -46,24 +48,30 @@ class DQN(Agent):
             done = False
             total_reward = 0.0
             t = 0
+            prev_lives = -1
             while not done:
                 action = self.epsilon_greedy_action(state.to(self.device))
-                next_frame, reward, done, _ = self.env.step(action.item())
+                next_frame, reward, done, info = self.env.step(action.item())
+                if prev_lives > info["ale.lives"]:
+                    reward = reward - 1
+                prev_lives = info["ale.lives"]
                 total_reward += reward
                 reward = torch.tensor([[reward]])
                 prev_frames.append(next_frame)
                 next_state = self.extract_state(prev_frames)
-                self.replay_buffer.push(state, action, next_state, reward, done)
+                self.replay_buffer.push(frame, action, next_frame, reward, done)
                 state = next_state
+                frame = next_frame
                 self.optimize_model()
-                self.update_epsilon()
+                self.frames_seen += 1
                 t += 1
+                if (self.frames_seen+1) % self.params["update_period"] == 0:
+                    self.update_target()
+                if (self.frames_seen+1) % self.params["eval_period"] == 0:
+                    self.evaluate_policy()
+                    self.record_video()
             print("Training episode", e, "completed in", t, "steps.")
             print("Reward achieved:", total_reward)
             print("Epsilon:", self.epsilon)
-            if (e+1) % self.params["update_period"] == 0:
-                self.update_target()
-            if (e+1) % self.params["eval_period"] == 0:
-                self.evaluate_policy()
-                self.record_video()
+            
       

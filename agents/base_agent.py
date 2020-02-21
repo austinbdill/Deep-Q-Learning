@@ -27,7 +27,7 @@ class Agent(object):
         self.Q = CNN(self.n_actions).to(self.device)
         self.Q_target = CNN(self.n_actions).to(self.device)
         
-        self.optimizer = optim.Adam(self.Q.parameters())
+        self.optimizer = optim.RMSprop(self.Q.parameters(), lr=2.5e-4)
         
     def update_target(self):
         self.Q_target.load_state_dict(self.Q.state_dict())
@@ -42,15 +42,15 @@ class Agent(object):
             frame = np.mean(frame, -1).astype(np.uint8)
             frame = frame[::2, ::2]
             state[:, :, i] = frame
-        state = state.transpose(2, 0, 1) / 255.0
-        state = torch.from_numpy(state).float().unsqueeze(0)
+        state = state.transpose(2, 0, 1)
+        state = torch.from_numpy(state).unsqueeze(0).float() / 255.0 
         return state
             
     def epsilon_greedy_action(self, state):
         sample = np.random.random()
         if sample > self.epsilon:
             with torch.no_grad():
-                a = self.Q(state).max(1)[1].view(1, 1)
+                a = self.Q(state).max(1)[1].view(1, 1).detach()
         else:
             a = torch.tensor([[np.random.randint(0, self.n_actions)]], device=self.device, dtype=torch.long)
         return a
@@ -59,7 +59,7 @@ class Agent(object):
         sample = np.random.random()
         if sample > 0.05:
             with torch.no_grad():
-                a = self.Q(state).max(1)[1].view(1, 1)
+                a = self.Q(state).max(1)[1].view(1, 1).detach()
         else:
             a = torch.tensor([[np.random.randint(0, self.n_actions)]], device=self.device, dtype=torch.long)
         return a
