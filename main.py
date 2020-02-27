@@ -4,6 +4,7 @@ import sys
 import yaml
 import gym
 from agents.dqn_agent import DQN
+from agents.double_dqn_agent import DoubleDQN
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--config", type=str, help='path to config file')
@@ -22,6 +23,8 @@ env = gym.make(params["env"])
 #Select agent
 if params["agent"] == "DQN":
     agent = DQN(env, params)
+elif params["agent"] == "DoubleDQN":
+    agent = DoubleDQN(env, params)
 
 #Tell agent to train with environment and parameters.
 agent.train()

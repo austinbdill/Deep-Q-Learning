@@ -7,6 +7,9 @@ import matplotlib.pyplot as plt
 from collections import deque
 from utils.replay_buffer import ReplayBuffer
 from networks.networks import CNN
+from skimage.color import rgb2gray
+from skimage.transform import resize
+from skimage.util import crop
 
 class Agent(object):
     
@@ -37,13 +40,14 @@ class Agent(object):
         self.epsilon = max(self.params["epsilon_end"], self.epsilon)
         
     def extract_state(self, frames):
-        state = np.zeros((105, 80, 4))
+        state = np.zeros((84, 84, 4))
         for i, frame in enumerate(frames):
-            frame = np.mean(frame, -1).astype(np.uint8)
-            frame = frame[::2, ::2]
+            frame = rgb2gray(frame)
+            frame = crop(frame, ((25, 10), (0,0)))
+            frame = resize(frame, (84, 84))
             state[:, :, i] = frame
         state = state.transpose(2, 0, 1)
-        state = torch.from_numpy(state).unsqueeze(0).float() / 255.0 
+        state = torch.from_numpy(state).unsqueeze(0).float()
         return state
             
     def epsilon_greedy_action(self, state):
@@ -51,6 +55,7 @@ class Agent(object):
         if sample > self.epsilon:
             with torch.no_grad():
                 a = self.Q(state).max(1)[1].view(1, 1).detach()
+                print(a)
         else:
             a = torch.tensor([[np.random.randint(0, self.n_actions)]], device=self.device, dtype=torch.long)
         return a

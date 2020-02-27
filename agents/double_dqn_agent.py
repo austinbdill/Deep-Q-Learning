@@ -6,7 +6,7 @@ from collections import deque
 import matplotlib.pyplot as plt
 from agents.base_agent import Agent
 
-class DQN(Agent):
+class DoubleDQN(Agent):
     
     def __init__(self, env, params):
         super().__init__(env, params)
@@ -25,8 +25,7 @@ class DQN(Agent):
             #non_final_next_states = torch.stack([s for s, d in zip(next_state_batch, non_final_mask) if d])
 
             state_action_values = self.Q(state_batch).gather(1, action_batch)
-            optimal_actions = self.Q(next_state_batch).max(1)[1]
-            target_state_action_values = self.Q_target(next_state_batch).gather(1, optimal_actions).unsqueeze(1)
+            target_state_action_values = self.Q_target(next_state_batch).max(1)[0].detach().unsqueeze(1)
             y = reward_batch + self.params["gamma"] * target_state_action_values
             #y[not done_batch] = y[not done_batch] + self.params["gamma"] * target_state_action_values
             
