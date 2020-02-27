@@ -19,14 +19,15 @@ class DoubleDQN(Agent):
             action_batch = torch.cat([rep[1] for rep in replays]).to(self.device)
             next_state_batch = torch.cat([rep[2] for rep in replays]).to(self.device)
             reward_batch = torch.cat([rep[3] for rep in replays]).to(self.device)
-            mask = torch.FloatTensor([int(not rep[4]) for rep in replays]).to(self.device)
+            mask = torch.FloatTensor([int(not rep[4]) for rep in replays]).to(self.device).unsqueeze(1)
 
             #non_final_mask = torch.tensor(tuple(map(lambda d: not d, done_batch)), device=self.device, dtype=torch.bool)
             #non_final_next_states = torch.stack([s for s, d in zip(next_state_batch, non_final_mask) if d])
 
             state_action_values = self.Q(state_batch).gather(1, action_batch)
-            target_state_action_values = self.Q_target(next_state_batch).max(1)[0].detach().unsqueeze(1)
-            y = reward_batch + self.params["gamma"] * target_state_action_values
+            optimal_actions = self.Q(next_state_batch).max(1)[1]
+            target_state_action_values = self.Q_target(next_state_batch).gather(1, optimal_actions.unsqueeze(1))#.unsqueeze(1)
+            y = reward_batch + self.params["gamma"] * mask * target_state_action_values
             #y[not done_batch] = y[not done_batch] + self.params["gamma"] * target_state_action_values
             
             loss = F.mse_loss(state_action_values, y)
@@ -70,6 +71,7 @@ class DoubleDQN(Agent):
                 if (self.frames_seen+1) % self.params["eval_period"] == 0:
                     self.evaluate_policy()
                     self.record_video()
+            print("Frames seen", self.frames_seen)
             print("Training episode", e, "completed in", t, "steps.")
             print("Reward achieved:", total_reward)
             print("Epsilon:", self.epsilon)

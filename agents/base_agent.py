@@ -38,16 +38,13 @@ class Agent(object):
     def update_epsilon(self):
         self.epsilon -= (1/self.params["anneal_period"])*(self.params["epsilon_start"]-self.params["epsilon_end"])
         self.epsilon = max(self.params["epsilon_end"], self.epsilon)
-        
-    def extract_state(self, frames):
-        state = np.zeros((84, 84, 4))
-        for i, frame in enumerate(frames):
-            frame = rgb2gray(frame)
-            frame = crop(frame, ((25, 10), (0,0)))
-            frame = resize(frame, (84, 84))
-            state[:, :, i] = frame
-        state = state.transpose(2, 0, 1)
-        state = torch.from_numpy(state).unsqueeze(0).float()
+    
+    def extract_state(self, prev_frame, curr_frame):
+        diff_frame = rgb2gray(curr_frame) - rgb2gray(prev_frame)
+        #frame = rgb2gray(frame)
+        frame = crop(diff_frame, ((25, 10), (0,0)))
+        frame = resize(frame, (84, 84))
+        state = torch.from_numpy(frame).unsqueeze(0).unsqueeze(0).float()
         return state
             
     def epsilon_greedy_action(self, state):
@@ -55,7 +52,6 @@ class Agent(object):
         if sample > self.epsilon:
             with torch.no_grad():
                 a = self.Q(state).max(1)[1].view(1, 1).detach()
-                print(a)
         else:
             a = torch.tensor([[np.random.randint(0, self.n_actions)]], device=self.device, dtype=torch.long)
         return a
@@ -73,20 +69,18 @@ class Agent(object):
         rewards = []
         print("TESTING...")
         for e in range(self.params["eval_episodes"]):
-            prev_frames = deque(maxlen=4)
-            for _ in range(3):
-                prev_frames.append(np.zeros((210, 160, 3)))
             #Reset environment and get initial state
             frame = self.env.reset()
-            prev_frames.append(frame)
-            state = self.extract_state(prev_frames)
+            #prev_frames.append(frame)
+            state = self.extract_state(frame, frame)
             total_reward = 0.0
             for t in range(self.params["max_steps"]):
                 action = self.greedy_action(state.to(self.device))
                 next_frame, reward, done, _ = self.env.step(action.item())
                 total_reward += reward
-                prev_frames.append(next_frame)
-                next_state = self.extract_state(prev_frames)
+                #prev_frames.append(next_frame)
+                next_state = self.extract_state(frame, next_frame)
+                frame = next_frame
                 state = next_state
                 if done:
                     break
@@ -97,19 +91,16 @@ class Agent(object):
         
     def record_video(self):
         env = gym.wrappers.Monitor(self.env, 'results',video_callable=lambda episode_id: True,force = True)
-        prev_frames = deque(maxlen=4)
-        for _ in range(3):
-            prev_frames.append(np.zeros((210, 160, 3)))
         #Reset environment and get initial state
         frame = env.reset()
-        prev_frames.append(frame)
-        state = self.extract_state(prev_frames)
+        #prev_frames.append(frame)
+        state = self.extract_state(frame, frame)
         done = False
         while not done:
             action = self.greedy_action(state.to(self.device))
             next_frame, reward, done, _ = env.step(action.item())
-            prev_frames.append(next_frame)
-            next_state = self.extract_state(prev_frames)
+            next_state = self.extract_state(frame, next_frame)
+            frame = next_frame
             state = next_state
       
     def optimize_model(self):

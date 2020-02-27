@@ -3,7 +3,7 @@ import torch.nn as nn
 
 class CNN(nn.Module):
 
-    def __init__(self, n_actions, height=84, width=84, n_channels=4):
+    def __init__(self, n_actions, height=84, width=84, n_channels=1):
         super(CNN, self).__init__()
         channel_sizes = (n_channels, 16, 32)
         kernel_sizes = (8, 4)
